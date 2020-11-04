@@ -77,5 +77,8 @@
     "webpack": "^4.29.1",
     "webpack-cli": "^3.2.3",
     "webpack-node-externals": "^1.5.4"
-  }
+  },
+  "precommit": [
+    "build"
+  ]
 }
