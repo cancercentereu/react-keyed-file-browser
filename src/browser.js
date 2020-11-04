@@ -12,14 +12,16 @@ import { DefaultFilter } from './filters'
 import { TableHeader } from './headers'
 import { TableFile } from './files'
 import { TableFolder } from './folders'
-import { DefaultConfirmDeletion, MultipleConfirmDeletion } from './confirmations'
+import { MultipleConfirmDeletion } from './confirmations'
 
 // default processors
 import { GroupByFolder } from './groupers'
 import { SortByName } from './sorters'
 
-import { isFolder } from './utils'
+import { isFolder, foldersFilesSplit, moveFilesAndFolders } from './utils'
 import { DefaultAction } from './actions'
+
+import isEqual from 'lodash/isEqual'
 
 const SEARCH_RESULTS_PER_PAGE = 20
 const regexForNewFolderOrFileSelection = /.*\/__new__[/]?$/gm
@@ -40,7 +42,7 @@ class RawFileBrowser extends React.Component {
   static propTypes = {
     files: PropTypes.arrayOf(PropTypes.shape({
       key: PropTypes.string.isRequired,
-      modified: PropTypes.number,
+      modified: PropTypes.any,
       size: PropTypes.number,
     })).isRequired,
     actions: PropTypes.node,
@@ -72,6 +74,8 @@ class RawFileBrowser extends React.Component {
 
     startOpen: PropTypes.bool.isRequired, // TODO: remove?
 
+    multipleSelection: PropTypes.bool.isRequired,
+
     headerRenderer: PropTypes.func,
     headerRendererProps: PropTypes.object,
     filterRenderer: PropTypes.func,
@@ -83,8 +87,9 @@ class RawFileBrowser extends React.Component {
     detailRenderer: PropTypes.func,
     detailRendererProps: PropTypes.object,
     actionRenderer: PropTypes.func,
+    actionRendererProps: PropTypes.object,
     confirmDeletionRenderer: PropTypes.func,
-    confirmMultipleDeletionRenderer: PropTypes.func,
+    selectMoveTargetRenderer: PropTypes.func,
 
     onCreateFiles: PropTypes.oneOfType([PropTypes.func, PropTypes.bool]),
     onCreateFolder: PropTypes.oneOfType([PropTypes.func, PropTypes.bool]),
@@ -98,8 +103,6 @@ class RawFileBrowser extends React.Component {
     onDownloadFolder: PropTypes.oneOfType([PropTypes.func, PropTypes.bool]),
 
     onSelect: PropTypes.func,
-    onSelectFile: PropTypes.func,
-    onSelectFolder: PropTypes.func,
 
     onPreviewOpen: PropTypes.func,
     onPreviewClose: PropTypes.func,
@@ -122,6 +125,8 @@ class RawFileBrowser extends React.Component {
 
     startOpen: false,
 
+    multipleSelection: true,
+
     headerRenderer: TableHeader,
     headerRendererProps: {},
     filterRenderer: DefaultFilter,
@@ -133,14 +138,12 @@ class RawFileBrowser extends React.Component {
     detailRenderer: DefaultDetail,
     detailRendererProps: {},
     actionRenderer: DefaultAction,
-    confirmDeletionRenderer: DefaultConfirmDeletion,
-    confirmMultipleDeletionRenderer: MultipleConfirmDeletion,
+    actionRendererProps: {},
+    confirmDeletionRenderer: MultipleConfirmDeletion,
 
     icons: {},
 
-    onSelect: (fileOrFolder) => { }, // Always called when a file or folder is selected
-    onSelectFile: (file) => { }, //    Called after onSelect, only on file selection
-    onSelectFolder: (folder) => { }, //    Called after onSelect, only on folder selection
+    onSelect: (files) => { }, // Always called when a file or folder is selected
 
     onPreviewOpen: (file) => { }, // File opened
     onPreviewClose: (file) => { }, // File closed
@@ -169,6 +172,12 @@ class RawFileBrowser extends React.Component {
     }
 
     window.addEventListener('click', this.handleGlobalClick)
+  }
+
+  componentDidUpdate(prevProps, prevState) {
+    if(!isEqual(this.state.selection, prevState.selection)) {
+      this.props.onSelect(this.state.selection);
+    }
   }
 
   componentWillUnmount() {
@@ -339,31 +348,28 @@ class RawFileBrowser extends React.Component {
     this.beginAction(null, null)
   }
 
-  select = (key, selectedType, ctrlKey, shiftKey) => {
+  select = (key, selectedType, ctrlKey, shiftKey, force) => {
     const { actionTargets } = this.state
     const shouldClearState = actionTargets.length && !actionTargets.includes(key)
     const selected = this.getFile(key)
 
     let newSelection = [key]
-    if (ctrlKey || shiftKey) {
-      const indexOfKey = this.state.selection.indexOf(key)
+    const indexOfKey = this.state.selection.indexOf(key)
+    if ((ctrlKey || shiftKey) && this.props.multipleSelection) {
       if (indexOfKey !== -1) {
         newSelection = [...this.state.selection.slice(0, indexOfKey), ...this.state.selection.slice(indexOfKey + 1)]
       } else {
         newSelection = [...this.state.selection, key]
       }
+    } else if(!force && indexOfKey !== -1) {
+      newSelection = []
     }
 
     this.setState(prevState => ({
       selection: newSelection,
       actionTargets: shouldClearState ? [] : actionTargets,
       activeAction: shouldClearState ? null : prevState.activeAction,
-    }), () => {
-      this.props.onSelect(selected)
-
-      if (selectedType === 'file') this.props.onSelectFile(selected)
-      if (selectedType === 'folder') this.props.onSelectFolder(selected)
-    })
+    }));
   }
 
   preview = (file) => {
@@ -422,7 +428,7 @@ class RawFileBrowser extends React.Component {
 
   // event handlers
   handleGlobalClick = (event) => {
-    const inBrowser = !!(this.browserRef && this.browserRef.contains(event.target))
+    /*const inBrowser = !!(this.browserRef && this.browserRef.contains(event.target))
 
     if (!inBrowser) {
       this.setState({
@@ -430,7 +436,7 @@ class RawFileBrowser extends React.Component {
         actionTargets: [],
         activeAction: null,
       })
-    }
+    }*/
   }
   handleActionBarRenameClick = (event) => {
     event.preventDefault()
@@ -483,6 +489,10 @@ class RawFileBrowser extends React.Component {
 
     this.downloadFile(this.state.selection)
   }
+  handleActionBarMoveClick = (event) => {
+    event.preventDefault()
+    this.beginAction('move', this.state.selection)
+  }
 
   updateFilter = (newValue) => {
     this.setState({
@@ -502,6 +512,8 @@ class RawFileBrowser extends React.Component {
       confirmDeletionRenderer: this.props.confirmDeletionRenderer,
       confirmMultipleDeletionRenderer: this.props.confirmMultipleDeletionRenderer,
       icons: this.props.icons,
+      multipleSelection: this.props.multipleSelection,
+      files: this.props.files,
 
       // browser state
       openFolders: this.state.openFolders,
@@ -528,33 +540,26 @@ class RawFileBrowser extends React.Component {
       deleteFile: this.props.onDeleteFile ? this.deleteFile : undefined,
       deleteFolder: this.props.onDeleteFolder ? this.deleteFolder : undefined,
 
+      // rendering
+      renderActions: this.renderActions,
+
       getItemProps: getItemProps,
     }
   }
 
-  renderActionBar(selectedItems) {
+  renderActions = (selectedItems, props = {}) => {
     const {
-      icons, canFilter,
-      filterRendererProps, filterRenderer: FilterRenderer,
+      icons,
       actionRenderer: ActionRenderer,
       onCreateFolder, onRenameFile, onRenameFolder,
       onDeleteFile, onDeleteFolder, onDownloadFile,
-      onDownloadFolder,
+      onDownloadFolder, selectMoveTargetRenderer
     } = this.props
     const browserProps = this.getBrowserProps()
-    const selectionIsFolder = (selectedItems.length === 1 && isFolder(selectedItems[0]))
-    let filter
-    if (canFilter) {
-      filter = (
-        <FilterRenderer
-          value={this.state.nameFilter}
-          updateFilter={this.updateFilter}
-          {...filterRendererProps}
-        />
-      )
-    }
 
-    const actions = (
+    const selectionIsFolder = (selectedItems.length === 1 && isFolder(selectedItems[0]))
+
+    return (
       <ActionRenderer
         browserProps={browserProps}
 
@@ -584,8 +589,32 @@ class RawFileBrowser extends React.Component {
 
         canDownloadFolder={typeof onDownloadFolder === 'function'}
         onDownloadFolder={this.handleActionBarDownloadClick}
+
+        canMove={typeof selectMoveTargetRenderer === 'function'}
+        onMove={this.handleActionBarMoveClick}
+
+        {...this.props.actionRendererProps}
+        {...props}
       />
     )
+  }
+
+  renderActionBar(selectedItems) {
+    const {
+      canFilter, filterRendererProps, filterRenderer: FilterRenderer,
+    } = this.props
+    let filter
+    if (canFilter) {
+      filter = (
+        <FilterRenderer
+          value={this.state.nameFilter}
+          updateFilter={this.updateFilter}
+          {...filterRendererProps}
+        />
+      )
+    }
+
+    const actions = this.renderActions(selectedItems)
 
     return (
       <div className="action-bar">
@@ -638,9 +667,18 @@ class RawFileBrowser extends React.Component {
   }
 
   handleMultipleDeleteSubmit = () => {
-    console.log(this)
-    this.deleteFolder(this.state.selection.filter(selection => selection[selection.length - 1] === '/'))
-    this.deleteFile(this.state.selection.filter(selection => selection[selection.length - 1] !== '/'))
+    const [folders, files] = foldersFilesSplit(this.state.selection)
+    this.deleteFile(files)
+    this.deleteFolder(folders)
+  }
+
+  handleMoveTargetSelect = (target) => {
+    const [folders, files] = foldersFilesSplit(this.state.actionTargets)
+    moveFilesAndFolders({
+      browserProps: this.getBrowserProps(),
+      files, folders, target
+    })
+    this.endAction()
   }
 
   getFiles() {
@@ -827,29 +865,40 @@ class RawFileBrowser extends React.Component {
         break
     }
 
-    const ConfirmMultipleDeletionRenderer = this.props.confirmMultipleDeletionRenderer
+    const ConfirmDeletionRenderer = this.props.confirmDeletionRenderer
+    const SelectMoveTargetRenderer = this.props.selectMoveTargetRenderer
 
     return (
-      <div className="rendered-react-keyed-file-browser">
-        {this.props.actions}
-        <div className="rendered-file-browser" ref={el => { this.browserRef = el }}>
-          {this.props.showActionBar && this.renderActionBar(selectedItems)}
-          {this.state.activeAction === 'delete' && this.state.selection.length > 1 &&
-            <ConfirmMultipleDeletionRenderer
-              handleDeleteSubmit={this.handleMultipleDeleteSubmit}
-            />}
-          <div className="files">
-            {renderedFiles}
+      <>
+        <div className="rendered-react-keyed-file-browser">
+          {this.props.actions}
+          <div className="rendered-file-browser" ref={el => { this.browserRef = el }}>
+            {this.props.showActionBar && this.renderActionBar(selectedItems)}
+            {this.state.activeAction === 'delete' &&
+              <ConfirmDeletionRenderer
+                handleDeleteSubmit={this.handleMultipleDeleteSubmit}
+                onCancel={this.endAction}
+                items={this.state.selection}
+              />}
+            {this.state.activeAction === 'move' &&
+              <SelectMoveTargetRenderer
+                targets={this.state.actionTargets}
+                onCancel={this.endAction}
+                onSelect={this.handleMoveTargetSelect}
+              />}
+            <div className="files">
+              {renderedFiles}
+            </div>
           </div>
+          {this.state.previewFile !== null && (
+            <this.props.detailRenderer
+              file={this.state.previewFile}
+              close={this.closeDetail}
+              {...this.props.detailRendererProps}
+            />
+          )}
         </div>
-        {this.state.previewFile !== null && (
-          <this.props.detailRenderer
-            file={this.state.previewFile}
-            close={this.closeDetail}
-            {...this.props.detailRendererProps}
-          />
-        )}
-      </div>
+      </>
     )
   }
 }

@@ -1,7 +1,7 @@
 // @ts-nocheck
 import PropTypes from 'prop-types'
 import React from 'react'
-import { moveFilesAndFolders } from './utils'
+import { moveFilesAndFoldersDrop } from './utils'
 import { extensionMapping } from './constants.js'
 
 class BaseFile extends React.Component {
@@ -176,7 +176,7 @@ const dragSource = {
   },
 
   endDrag(props, monitor, component) {
-    moveFilesAndFolders(props, monitor, component)
+    moveFilesAndFoldersDrop(props, monitor, component)
   },
 }
 
