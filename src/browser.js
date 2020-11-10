@@ -22,6 +22,7 @@ import { isFolder, foldersFilesSplit, moveFilesAndFolders } from './utils'
 import { DefaultAction } from './actions'
 
 import isEqual from 'lodash/isEqual'
+import pick from 'lodash/pick'
 
 const SEARCH_RESULTS_PER_PAGE = 20
 const regexForNewFolderOrFileSelection = /.*\/__new__[/]?$/gm
@@ -53,6 +54,8 @@ class RawFileBrowser extends React.Component {
 
     group: PropTypes.func.isRequired,
     sort: PropTypes.func.isRequired,
+
+    localStorageKey: PropTypes.string,
 
     icons: PropTypes.shape({
       Folder: PropTypes.element,
@@ -172,11 +175,24 @@ class RawFileBrowser extends React.Component {
     }
 
     window.addEventListener('click', this.handleGlobalClick)
+
+    if(this.props.localStorageKey) {
+      try {
+        const state = JSON.parse(localStorage.getItem(this.props.localStorageKey));
+        this.setState(state);
+      } catch(e) {
+        console.warn(e);
+      }
+    }
   }
 
   componentDidUpdate(prevProps, prevState) {
     if(!isEqual(this.state.selection, prevState.selection)) {
       this.props.onSelect(this.state.selection);
+    }
+    if(this.props.localStorageKey) {
+      const remember = pick(this.state, ['openFolders']);
+      localStorage.setItem(this.props.localStorageKey, JSON.stringify(remember));
     }
   }
 
