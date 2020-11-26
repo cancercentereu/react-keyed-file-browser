@@ -93,6 +93,7 @@ class RawFileBrowser extends React.Component {
     actionRendererProps: PropTypes.object,
     confirmDeletionRenderer: PropTypes.func,
     selectMoveTargetRenderer: PropTypes.func,
+    selectMoveTargetRendererProps: PropTypes.object,
 
     onCreateFiles: PropTypes.oneOfType([PropTypes.func, PropTypes.bool]),
     onCreateFolder: PropTypes.oneOfType([PropTypes.func, PropTypes.bool]),
@@ -143,6 +144,8 @@ class RawFileBrowser extends React.Component {
     actionRenderer: DefaultAction,
     actionRendererProps: {},
     confirmDeletionRenderer: MultipleConfirmDeletion,
+    selectMoveTargetRenderer: null,
+    selectMoveTargetRendererProps: {},
 
     icons: {},
 
@@ -901,6 +904,7 @@ class RawFileBrowser extends React.Component {
                 targets={this.state.actionTargets}
                 onCancel={this.endAction}
                 onSelect={this.handleMoveTargetSelect}
+                {...this.props.selectMoveTargetRendererProps}
               />}
             <div className="files">
               {renderedFiles}
