@@ -113,6 +113,8 @@ class RawFileBrowser extends React.Component {
 
     onFolderOpen: PropTypes.func,
     onFolderClose: PropTypes.func,
+
+    onScrolledToBottom: PropTypes.func
   }
 
   static defaultProps = {
@@ -700,6 +702,14 @@ class RawFileBrowser extends React.Component {
     this.endAction()
   }
 
+  handleFilesScroll = (e) => {
+    const el = e.target;
+    if(typeof(this.props.onScrolledToBottom) === 'function'
+       && el.scrollHeight - el.scrollTop === el.clientHeight) {
+      this.props.onScrolledToBottom(e);
+    }
+  }
+
   getFiles() {
     let files = this.props.files.concat([])
     if (this.state.activeAction === 'createFolder') {
@@ -906,7 +916,7 @@ class RawFileBrowser extends React.Component {
                 onSelect={this.handleMoveTargetSelect}
                 {...this.props.selectMoveTargetRendererProps}
               />}
-            <div className="files">
+            <div className="files" onScroll={this.handleFilesScroll}>
               {renderedFiles}
             </div>
           </div>
