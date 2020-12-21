@@ -8,10 +8,18 @@ function foldersFilesSplit(items) {
   return partition(items, item => item.endsWith('/'));
 }
 
-async function moveFilesAndFolders({ browserProps, folders, files, target }) {
+function moveFilesAndFolders({ browserProps, folders, files, target }) {
   browserProps.openFolder(target)
 
   const moves = [];
+
+  function filterPred(file) {
+    //returns false if there is a selected folder containing the file
+    return !folders.some(folder => folder != file && file.startsWith(folder));
+  }
+
+  files = files.filter(filterPred);
+  folders = folders.filter(filterPred);
 
   for(let selection of files) {
     const fileKey = selection
@@ -19,11 +27,10 @@ async function moveFilesAndFolders({ browserProps, folders, files, target }) {
     const fileName = fileNameParts[fileNameParts.length - 1]
     const newKey = `${target}${fileName}`
     if (newKey !== fileKey && browserProps.moveFile) {
-      await browserProps.moveFile(fileKey, newKey)
+      browserProps.moveFile(fileKey, newKey)
     }
   }
 
-  folders.sort((a, b) => b.length - a.length);
   for(let selection of folders) {
     const fileKey = selection
     const fileNameParts = fileKey.split('/')
@@ -34,7 +41,7 @@ async function moveFilesAndFolders({ browserProps, folders, files, target }) {
     if (newKey.substr(0, fileKey.length) === fileKey) return
 
     if (newKey !== fileKey && browserProps.moveFolder) {
-      await browserProps.moveFolder(fileKey, newKey)
+      browserProps.moveFolder(fileKey, newKey)
     }
   }
 }
