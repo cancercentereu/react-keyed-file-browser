@@ -391,6 +391,7 @@ class RawFileBrowser extends React.Component {
       actionTargets: shouldClearState ? [] : actionTargets,
       activeAction: shouldClearState ? null : prevState.activeAction,
     }));
+    return newSelection
   }
 
   preview = (file) => {
