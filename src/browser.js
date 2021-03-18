@@ -450,15 +450,15 @@ class RawFileBrowser extends React.Component {
 
   // event handlers
   handleGlobalClick = (event) => {
-    /*const inBrowser = !!(this.browserRef && this.browserRef.contains(event.target))
+    const inBrowser = !!(this.browserRef && this.browserRef.contains(event.target))
 
-    if (!inBrowser) {
+    if (!inBrowser && (this.state.activeAction == null || this.state.activeAction === 'rename')) {
       this.setState({
         selection: [],
         actionTargets: [],
         activeAction: null,
       })
-    }*/
+    }
   }
   handleActionBarRenameClick = (event) => {
     event.preventDefault()
@@ -900,9 +900,9 @@ class RawFileBrowser extends React.Component {
 
     return (
       <>
-        <div className="rendered-react-keyed-file-browser">
+        <div className="rendered-react-keyed-file-browser" ref={el => { this.browserRef = el }}>
           {this.props.actions}
-          <div className="rendered-file-browser" ref={el => { this.browserRef = el }}>
+          <div className="rendered-file-browser">
             {this.props.showActionBar && this.renderActionBar(selectedItems)}
             {this.state.activeAction === 'delete' &&
               <ConfirmDeletionRenderer
