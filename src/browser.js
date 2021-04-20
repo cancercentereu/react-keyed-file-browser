@@ -372,7 +372,6 @@ class RawFileBrowser extends React.Component {
   select = (key, selectedType, ctrlKey, shiftKey, force) => {
     const { actionTargets } = this.state
     const shouldClearState = actionTargets.length && !actionTargets.includes(key)
-    const selected = this.getFile(key)
 
     let newSelection = [key]
     const indexOfKey = this.state.selection.indexOf(key)
@@ -392,6 +391,14 @@ class RawFileBrowser extends React.Component {
       activeAction: shouldClearState ? null : prevState.activeAction,
     }));
     return newSelection
+  }
+
+  setSelection = (newSelection) => {
+    this.setState({
+      selection: newSelection,
+      actionTargets: [],
+      activeAction: null,
+    });
   }
 
   preview = (file) => {
@@ -489,10 +496,8 @@ class RawFileBrowser extends React.Component {
         selection: [addKey],
       }
       if (prevState.selection && prevState.selection.length > 0) {
-        stateChanges.openFolders = {
-          ...prevState.openFolders,
-          [this.state.selection]: true,
-        }
+        stateChanges.openFolders = prevState.openFolders;
+        prevState.selection.forEach(sel => stateChanges.openFolders[sel] = true);
       }
       return stateChanges
     })
@@ -546,6 +551,7 @@ class RawFileBrowser extends React.Component {
 
       // browser manipulation
       select: this.select,
+      setSelection: this.setSelection,
       openFolder: this.openFolder,
       toggleFolder: this.toggleFolder,
       beginAction: this.beginAction,
