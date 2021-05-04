@@ -4,7 +4,7 @@ import React from 'react'
 import { moveFilesAndFoldersDrop } from './utils'
 import { extensionMapping } from './constants.js'
 
-class BaseFile extends React.Component {
+class BaseFile extends React.PureComponent {
   static propTypes = {
     fileKey: PropTypes.string,
     url: PropTypes.string,

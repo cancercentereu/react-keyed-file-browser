@@ -3,7 +3,7 @@ import PropTypes from 'prop-types'
 import React from 'react'
 import { moveFilesAndFoldersDrop } from './utils'
 
-class BaseFolder extends React.Component {
+class BaseFolder extends React.PureComponent {
   static propTypes = {
     name: PropTypes.string,
     fileKey: PropTypes.string,

@@ -528,8 +528,11 @@ class RawFileBrowser extends React.Component {
     })
   }
 
-  getBrowserProps() {
-    return {
+  updateBrowserProps() {
+    if(this.browserProps === undefined) {
+      this.browserProps = {};
+    }
+    Object.assign(this.browserProps, {
       // browser config
       nestChildren: this.props.nestChildren,
       fileRenderer: this.props.fileRenderer,
@@ -572,7 +575,14 @@ class RawFileBrowser extends React.Component {
       renderActions: this.renderActions,
 
       getItemProps: getItemProps,
+    });
+  }
+
+  getBrowserProps() {
+    if(!this.browserProps) {
+      this.updateBrowserProps();
     }
+    return this.browserProps;
   }
 
   renderActions = (selectedItems, props = {}) => {
@@ -776,6 +786,7 @@ class RawFileBrowser extends React.Component {
   }
 
   render() {
+    this.updateBrowserProps();
     const browserProps = this.getBrowserProps()
     const headerProps = {
       browserProps,
