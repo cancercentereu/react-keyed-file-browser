@@ -22,7 +22,6 @@ class BaseFile extends React.PureComponent {
       select: PropTypes.func,
       beginAction: PropTypes.func,
       endAction: PropTypes.func,
-      preview: PropTypes.func,
 
       createFiles: PropTypes.func,
       moveFile: PropTypes.func,
@@ -64,12 +63,6 @@ class BaseFile extends React.PureComponent {
 
   handleFileClick = (event) => {
     event && event.preventDefault()
-    this.props.browserProps.preview({
-      url: this.props.url,
-      name: this.getName(),
-      key: this.props.fileKey,
-      extension: this.getExtension(),
-    })
   }
   handleItemClick = (event) => {
     event.stopPropagation()

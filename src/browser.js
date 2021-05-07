@@ -108,9 +108,6 @@ class RawFileBrowser extends React.Component {
 
     onSelect: PropTypes.func,
 
-    onPreviewOpen: PropTypes.func,
-    onPreviewClose: PropTypes.func,
-
     onFolderOpen: PropTypes.func,
     onFolderClose: PropTypes.func,
 
@@ -153,9 +150,6 @@ class RawFileBrowser extends React.Component {
 
     onSelect: (files) => { }, // Always called when a file or folder is selected
 
-    onPreviewOpen: (file) => { }, // File opened
-    onPreviewClose: (file) => { }, // File closed
-
     onFolderOpen: (folder) => { }, // Folder opened
     onFolderClose: (folder) => { }, // Folder closed
   }
@@ -168,8 +162,6 @@ class RawFileBrowser extends React.Component {
 
     nameFilter: '',
     searchResultsShown: SEARCH_RESULTS_PER_PAGE,
-
-    previewFile: null,
 
     addFolder: null,
   }
@@ -401,24 +393,6 @@ class RawFileBrowser extends React.Component {
     });
   }
 
-  preview = (file) => {
-    if (this.state.previewFile && this.state.previewFile.key !== file.key) this.closeDetail()
-
-    this.setState({
-      previewFile: file,
-    }, () => {
-      this.props.onPreviewOpen(file)
-    })
-  }
-
-  closeDetail = () => {
-    this.setState({
-      previewFile: null,
-    }, () => {
-      this.props.onPreviewClose(this.state.previewFile)
-    })
-  }
-
   handleShowMoreClick = (event) => {
     event.preventDefault()
     this.setState(prevState => ({
@@ -457,9 +431,10 @@ class RawFileBrowser extends React.Component {
 
   // event handlers
   handleGlobalClick = (event) => {
-    const inBrowser = !!(this.browserRef && this.browserRef.contains(event.target))
+    const outside = (!this.browserRef || !this.browserRef.contains(event.target)) 
+      && document.getElementById('root').contains(event.target);
 
-    if (!inBrowser && (this.state.activeAction == null || this.state.activeAction === 'rename')) {
+    if (outside && (this.state.activeAction == null || this.state.activeAction === 'rename')) {
       this.setState({
         selection: [],
         actionTargets: [],
@@ -559,7 +534,6 @@ class RawFileBrowser extends React.Component {
       toggleFolder: this.toggleFolder,
       beginAction: this.beginAction,
       endAction: this.endAction,
-      preview: this.preview,
 
       // item manipulation
       createFiles: this.props.onCreateFiles ? this.createFiles : undefined,
@@ -915,6 +889,8 @@ class RawFileBrowser extends React.Component {
     const ConfirmDeletionRenderer = this.props.confirmDeletionRenderer
     const SelectMoveTargetRenderer = this.props.selectMoveTargetRenderer
 
+    const previewFileKey = this.state.selection[this.state.selection.length-1];
+
     return (
       <>
         <div className="rendered-react-keyed-file-browser" ref={el => { this.browserRef = el }}>
@@ -938,13 +914,10 @@ class RawFileBrowser extends React.Component {
               {renderedFiles}
             </div>
           </div>
-          {this.state.previewFile !== null && (
-            <this.props.detailRenderer
-              file={this.state.previewFile}
-              close={this.closeDetail}
-              {...this.props.detailRendererProps}
-            />
-          )}
+          {this.props.detailRenderer && <this.props.detailRenderer
+            fileKey={previewFileKey}
+            {...this.props.detailRendererProps}
+          />}
         </div>
       </>
     )

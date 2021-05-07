@@ -24,7 +24,6 @@ class BaseFolder extends React.PureComponent {
       toggleFolder: PropTypes.func,
       beginAction: PropTypes.func,
       endAction: PropTypes.func,
-      preview: PropTypes.func,
 
       createFiles: PropTypes.func,
       createFolder: PropTypes.func,
