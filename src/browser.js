@@ -23,6 +23,7 @@ import { DefaultAction } from './actions'
 
 import isEqual from 'lodash/isEqual'
 import pick from 'lodash/pick'
+import union from 'lodash/union'
 
 const SEARCH_RESULTS_PER_PAGE = 20
 const regexForNewFolderOrFileSelection = /.*\/__new__[/]?$/gm
@@ -366,28 +367,47 @@ class RawFileBrowser extends React.Component {
     const shouldClearState = actionTargets.length && !actionTargets.includes(key)
 
     let newSelection = [key]
+    let newLastSelected = key
     const indexOfKey = this.state.selection.indexOf(key)
-    if ((ctrlKey || shiftKey) && this.props.multipleSelection) {
+
+    let flip = ctrlKey || (shiftKey && !this.state.lastSelected);
+    let range = !flip && shiftKey;
+
+    if (flip && this.props.multipleSelection) {
       if (indexOfKey !== -1) {
         newSelection = [...this.state.selection.slice(0, indexOfKey), ...this.state.selection.slice(indexOfKey + 1)]
+        newLastSelected = null
       } else {
         newSelection = [...this.state.selection, key]
       }
+    } else if(range && this.props.multipleSelection) {
+      const files = this.getVisibleFiles();
+
+      let begin = files.findIndex(file => file.key === this.state.lastSelected)
+      let end = files.findIndex(file => file.key === key)
+      if(begin > end) {
+        [begin, end] = [end, begin];
+      }
+      const newKeys = files.slice(begin, end + 1).map(file => file.key);
+      newSelection = union(this.state.selection, newKeys);
     } else if(!force && indexOfKey !== -1) {
       newSelection = []
+      newLastSelected = null
     }
 
     this.setState(prevState => ({
       selection: newSelection,
+      lastSelected: newLastSelected,
       actionTargets: shouldClearState ? [] : actionTargets,
       activeAction: shouldClearState ? null : prevState.activeAction,
     }));
     return newSelection
   }
 
-  setSelection = (newSelection) => {
+  setSelection = (selection, lastSelected) => {
     this.setState({
-      selection: newSelection,
+      selection,
+      lastSelected,
       actionTargets: [],
       activeAction: null,
     });
@@ -519,6 +539,7 @@ class RawFileBrowser extends React.Component {
       icons: this.props.icons,
       multipleSelection: this.props.multipleSelection,
       files: this.props.files,
+      visibleFiles: this.getVisibleFiles(),
 
       // browser state
       openFolders: this.state.openFolders,
@@ -744,6 +765,28 @@ class RawFileBrowser extends React.Component {
     return files
   }
 
+  flattenFiles(files, result) {
+    for(let f of files) {
+      if(isFolder(f)) {
+        if(this.props.showFoldersOnFilter || !this.state.nameFilter) {
+          result.push(f);
+        }
+        if(this.state.nameFilter || 
+          (f.key in this.state.openFolders && !this.props.nestChildren)) {
+            this.flattenFiles(f.children, result);
+        }
+      } else {
+        result.push(f);
+      }      
+    }
+  }
+
+  getVisibleFiles() {
+    const result = [];
+    this.flattenFiles(this.getFiles(), result);
+    return result;
+  }
+
   getSelectedItems(files) {
     const { selection } = this.state
     const selectedItems = []
@@ -765,7 +808,8 @@ class RawFileBrowser extends React.Component {
     const headerProps = {
       browserProps,
       fileKey: '',
-      fileCount: this.props.files.length,
+      fileCount: browserProps.visibleFiles.length,
+      selectedCount: this.state.selection.length
     }
     let renderedFiles
 
