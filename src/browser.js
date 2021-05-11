@@ -668,7 +668,7 @@ class RawFileBrowser extends React.Component {
     files.map((file) => {
       const thisItemProps = {
         ...browserProps.getItemProps(file, browserProps),
-        depth: this.state.nameFilter ? 0 : depth,
+        depth: this.props.showFoldersOnFilter || !this.state.nameFilter ? depth : 0
       }
 
       if (!isFolder(file)) {
